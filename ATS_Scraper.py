@@ -14,7 +14,7 @@ import json
 
 
 #path variable of python work directory
-path = '/Users/mo/development'
+path = '/path/goes/here'
 
 #url
 url = 'https://www.abovetopsecret.com'
