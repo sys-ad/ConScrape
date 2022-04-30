@@ -1,6 +1,6 @@
 #abovetopsecret
 #https://www.abovetopsecret.com
-####
+
 import pandas as pd
 import numpy as np
 
@@ -11,314 +11,321 @@ import requests
 from bs4 import BeautifulSoup
 
 import json
+import psycopg2
+
+!pip install psycopg2-binary
+from sqlalchemy import create_engine
 
 
-#path variable of python work directory
-path = '/path/goes/here'
-
-#url
+main_url = 'https://www.abovetopsecret.com'
 url = 'https://www.abovetopsecret.com'
+path = '/Users/mo/development/'
 
 
-#running requests get method to retrieve url data
-request = requests.get(url)
-
-#request type
-type(request)
-
-#status code of request session
-request.status_code
-type(request.status_code)
-
-
-#content of the html of the request 
-request.content
-type(request.content)
-
-#printing request content from page variable 
-with open(path + "/ATS_0417_1.txt", "w") as f:
-    f.write(request.text)
-
-
-#beatiful soup web scraping
-
-#declaring soup variable to use html parser
-soup = BeautifulSoup(request.content, "html.parser")
-type(soup)
-
-#find_all tag from html with div element and class content4x
-content4x_banner = soup.find_all("div", class_="content4x")
-len(content4x_banner)
-type(content4x_banner)
-
-content1x_banner = soup.find_all("div", class_="content1x")
-len(content1x_banner)
-
-
-#another find_all method
-content4x_banner = soup.find_all("div", {"class": "content4x"})
-len(content4x_banner)
-
-content1x_banner= soup.find_all("div", {"class": "content1x"})
-len(content1x_banner)
-
-i=1
-
-content4x_banner
-type(content4x_banner)
-len(content4x_banner)
-
-content4x_banner[0]
-content4x_banner[1]
-content4x_banner[2]
-content4x_banner[3]
-
-ban = content4x_banner[i]
-
-
-ban
-forum_ban = ban.find_all('a', {'class': 'forumsm', 'href': True})
-forum_ban
-type(forum_ban)
-len(forum_ban)
-
-forum_ban[0]
-type(forum_ban[0])
-
-forum_ban[1]['class']
-forum_ban[1]['href']
-forum_ban[1].text
-
-
-
-
-head = ban.find_all('a', {'class': 'H1 h1home', 'href': True})
-len(head)
-type(head)
-href = head[0]['href']
-title = head[0].text
-
-
-
-
-
-
-#banner link
-tags = ban.find_all('a', {'class': 'forumsm', 'href': True})
-len(tags)
-type(tags)
-tags[0]['href']
-
-ban
-head = ban.find_all('a', {'class': 'H1 h1home', 'href': True})
-len(head)
-type(head)
-href = head[0]['href']
-title = head[0].text
-
-
-
-
-
-
-
-for i in range(3,10,2):
-    print(i)
-
-
-a = content4x_banner
-soup_find_a = soup.find_all('a')
-type(soup_find_a)
-len(soup_find_a)
-
-i=120
-soup_find_a[i]
-
-link_list = []
-
-aban = soup.find_all('a',{'class': 'H1 h1home', 'href': True})
-type(aban)
-len(aban)
-
-aban[0]
-aban[0]['href']
-aban[0]['class']
-aban[0].text
-
-for a in aban:
-    #print(a)
-    print(type(a))
-
-
-<a href=" " class="H1 h1home"
-
-
-for link in soup.find_all('a'):
-    print(link.get('href'))
-    #add elements to a list
-    link_list.append(link.get('href'))
+def mainPageThreadLinks(url):
+    
+    #Request
+    request = requests.get(url)
+    
+    if request.status_code < 200 or request.status_code > 299:
+        print("Request has failed with code {}".format(request.status_code))
+        return request
+    else:
+        print("Request has passed with code {}".format(request.status_code))
     
     
-thread_link = []
-for link in link_list:
-    try:
-        if '/forum/thread' in link and '/pg' in link:
-            thread_link.append(link)
-    except TypeError:
-        continue
+    #Declare the soup
+    soup = BeautifulSoup(request.content, "html.parser")
+    #type(soup)
+
+    #declare list to obtain all href links in a-tag html
+    link_list = []
+
+    for link in soup.find_all('a'):
+        #print(link.get('href'))
+        #add elements to a list
+        link_list.append(link.get('href'))
+        
+    #create new list to retrieve thread links    
+    thread_link = []
+    for link in link_list:
+        try:
+            if '/forum/thread' in link and '/pg' in link:
+                thread_link.append(link)
+        except TypeError:
+            continue
+
+    #create new list of clean links
+    thread_link_clean = []    
+
+    for link in thread_link:
+        if 'https://www.abovetopsecret.com/' not in link:
+            thread_link_clean.append('https://www.abovetopsecret.com' + link)
+        else:
+            thread_link_clean.append(link)
+            
+    return thread_link_clean
 
 
-type(link_list)
+def threadPostDF(url):
+    
+    request = requests.get(url)      
+    print(request.status_code)
+    
+    if request.status_code < 200 or request.status_code > 299:
+        return(request)
 
-ft = '/forum/thread'
+    soup = BeautifulSoup(request.content, "html.parser")
+    
+    #title
+    title = soup.title.text
 
-pt = '/pg'
+    thread_replies = soup.find_all('div', {'class': 'threadpostC post'})
 
-t = '/forum/thread1309141/pg1'
+    #initializing dataframe
+    thread_df = pd.DataFrame()
+    postid_list = []
+    text_list = []
+    
+    for t in thread_replies:
+        postid = t['id']
+        #print(postid)
+        
+        postid_list.append(postid)
+        text_list.append(t.text)
+        
+    thread_df['postid'] = postid_list
+    thread_df['text'] = text_list
+    thread_df['title'] = title
+    thread_df['link'] = url
+    
+    return thread_df
 
-ft in t
-pt in t
 
-thread_link = []
-for link in link_list:
-    if '/forum/thread' in link and '/pg' in link:
-        thread_link.append(link)
+def aboveTopFullDF(url):
+    
+    links = mainPageThreadLinks(url)
+    
+    result_df = pd.DataFrame()
+    
+    for link in links:
+        print(link)
+        tdf = threadPostDF(link)
+        
+        result_df = result_df.append(tdf)
+
+    return result_df
+
+result_df.to_csv(path+'/test1.csv')
 
 
-#content banner
+links = mainPageThreadLinks(main_url)
+
+tdf = threadPostDF(links[0])
+tdf.to_csv(path+'/thread_df_0417_3.csv')
+
+path
+thread_df.to_csv(path+'/thread_df_0417_2.csv')
+    
+    
+
+
+            
+
+links = mainPageThreadLinks(url)
+links
+len(links)            
+            
+i=0           
+
+l = links[i]            
+
+
+l            
+
+request = requests.get(l)      
+request.status_code            
+
+with open(path + "/link1_above_1.txt", "w") as f:
+    f.write(request.text)            
+            
+
+
+soup = BeautifulSoup(request.content, "html.parser")  
+
+#title of the link
+soup.title.text
+
+#date posted
+date_threads = soup.find_all('div',{'class': 'posttopL'})
+type(date_threads)
+len(date_threads)
+
+date_threads[0]
+type(date_threads[0])
+len(date_threads[0])
+
+
+#Date posted
+date_threads[0].text
+
+#pid
+pid_find = date_threads[0].find_all('a')
+pid_find[0]['name']
+
+
+
+
+
+thread_replies = soup.find_all('div', {'class': 'threadpostC post'})       
+type(thread_replies)
+len(thread_replies)        
+
+#postid
+thread_replies[0]['id']    
+
+#thread
+thread_replies[0].text
+
+
+thread_replies[1].text
+thread_replies[2] 
+thread_replies[3] 
+thread_replies[17].text 
+
+type(thread_replies[0])
+
+pid_thread = thread_replies[0].find_all('div')
+pid_thread[0]
+pid_thread[1]
+pid_thread[2]
+len(pid_thread)     
+
+#DataFrame
+result_df = pd.DataFrame()
+
+
+links = mainPageThreadLinks(url)
+         
 i=0
-ban = content4x_banner[i]
+l = links[i]  
+print(l)     
 
-ban
-head = ban.find_all('a', {'class': 'H1 h1home', 'href': True})
-len(head)
-type(head)
-href = head[0]['href']
-title = head[0].text
+request = requests.get(l)      
+request.status_code          
+           
+soup = BeautifulSoup(request.content, "html.parser")  
+
+#link
+l
+
+#title of the link
+title = soup.title.text 
 
 
-content4x_banner
-content1x_banner
+#date posted dataframe
+date_df = pd.DataFrame()
 
-len(content4x_banner)
+#Date Posted
+date_threads = soup.find_all('div',{'class': 'posttopL'})
+len(date_threads)
 
-href_list = []
-title_list = []
+dp_list = []
+pid_list = []
 
-for ban in content4x_banner:
-    head = ban.find_all('a', {'class': 'H1 h1home', 'href': True})
-    if len(head) == 0:
-        continue
-    href = head[0]['href']
-    title = head[0].text
+for t in date_threads:
+    print(t.text)
+    dp_list.append(t.text)
     
-    href_list.append(href)
-    title_list.append(title)
+    pid_find = t.find_all('a')
+    pid = pid_find[0]['name']  
+
+    print(pid)
+    pid_list.append(pid)
     
-    print(href)
-    print(title)
+date_df['dateposted'] = dp_list
+date_df['pid'] = pid_list
+
+date_df
+
+type(date_df)
 
 
-for i in range(8):
-    print(i)
-    #print("b {}".format(i%2))
+
+i=0
+
+#Date posted
+date_threads[i].text
+
+#pid
+pid_find = date_threads[i].find_all('a')
+pid_find[i]['name']        
+len(pid_find)
+            
+
+
+
+
+
+thread_replies = soup.find_all('div', {'class': 'threadpostC post'})
+
+#title
+title = soup.title.text
+
+thread_df = pd.DataFrame()
+postid_list = []
+text_list = []
+
+for t in thread_replies:
+    postid = t['id']
+    print(postid)
     
-    if(i%3==2):
-        print('b')
-        continue
+    postid_list.append(postid)
+    text_list.append(t.text)
     
-    print('a')
+thread_df['postid'] = postid_list
+thread_df['text'] = text_list
+thread_df['title'] = title
+thread_df['link'] = l
+
+
+path
+thread_df.to_csv(path+'Output/thread_df_0417_2.csv')
 
 
 
 
-#banner link
-tags = ban.find_all('a', {'class': 'forumsm', 'href': True})
-len(tags)
-type(tags)
-tags[0]['href']
-
-ban
-head = ban.find_all('a', {'class': 'H1 h1home', 'href': True})
-len(head)
-type(head)
-href = head[0]['href']
-title = head[0].text
-
-print(head[0])
-
-#banner
-content4x_banner
-type(content4x_banner)
-len(content4x_banner)
-content4x_banner[0]
-content4x_banner[1]
-content4x_banner[15]
-content4x_banner[16]
-
-type(content4x_banner[0])
 
 
+l = ['a','d','c']
+result_df['test'] = l
+result_df
+
+result_df.to_sql('data1', engine, index=False)
+
+thread_df.to_sql('tablee', engine, index=False)
+thread_df
 
 
-i=1
+#postid
+thread_replies[0]['id']    
 
-ban = content4x_banner[i]
-ban
-type(ban)
-
-ban_div = ban.find_all("div", {"class": "footline"})
-len(ban_div)
-type(ban_div)
-a[0]
+#thread
+thread_replies[0].text
 
 
-tags = ban.find_all('a', {'class': 'forumsm', 'href': True})
-len(tags)
-type(tags)
-tags[0]['href']
+#creating basic dataframe
+df = pd.DataFrame()
+
+engine = create_engine("postgresql+psycopg2://user1:Namaste1@localhost/postgres")
+
+connection = engine.connect()
+connection.close()
 
 
 
 
-a = ban.find_all('a', href=True)
-len(a)
-type(a)
-a[0]
-a[1]
-a[2]
-
-banner_test = content4x_banner[i]
-type(content4x_banner)
-type(banner_test)
-
-a = content4x_banner[i].get('a')
-a
 
 
-banner_test['href']
-
-
-banner_test['href']
-
-a = banner_test.get('div')
-print(a)
-
-tag_test_1= soup.find_all("div", {"class": "homeRight"})
-
-len(tag_test_1)
-tag_test_1[0]
-
-
-content4x_banner[0]
-type(content4x_banner[0])
-
-content4x_banner[0]
-
-##########
-
-
-soup.find(id="link3")
-# <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>
 
 
