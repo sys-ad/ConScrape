@@ -56,7 +56,7 @@ def get_posts_comments_hot(reddit, sub, limit=100):
 
 def main():
     
-    reddit = praw.Reddit(client_id='l0hwKcYEkfY56lC4AS2t3Q', client_secret='DIPR8PA3cqK9xbViPFKzO3YYIRpZOQ', user_agent='scraper_')
+    reddit = praw.Reddit(client_id='', client_secret='', user_agent='')
     
     sub = 'Conspiracy'
 
