@@ -56,7 +56,10 @@ def get_posts_comments_hot(reddit, sub, limit=100):
 
 def main():
     
-    reddit = praw.Reddit(client_id='', client_secret='', user_agent='')
+    path = '/path/to/'
+
+    
+    reddit = praw.Reddit(client_id='', client_secret='', user_agent='', check_for_async=False)
     
     sub = 'Conspiracy'
 
@@ -66,7 +69,7 @@ def main():
     i=1
     post_id=consp_hot_posts['id'][i]
     
-    post_comments_df = get_post_comments(post_id)
+    post_comments_df = get_post_comments(reddit, post_id)
     post_comments_df.shape
     
     all_post_comments_df = get_posts_comments_hot(reddit, sub, limit=3)
