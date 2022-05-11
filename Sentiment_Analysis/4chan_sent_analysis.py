@@ -196,8 +196,8 @@ def frontpage_replies_sentiment(frontpage_replies_df):
 def main():
 
 
-    # path='/Users/mo/dev/projects/scrapper_csvs/4chan_data/'
-    path='C:/Users/chowd/OneDrive/Desktop/PY/'
+    # path='/path/'
+    path=''
 
     # Get json and open
     boardLetter = 'pol'
